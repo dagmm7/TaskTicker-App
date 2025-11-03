@@ -1,2 +1,2 @@
-# SafeMate-App
-Smart Emergency Alert &amp; Safety App built with Flutter.
+# TaskTicker
+taskTicker; tasks manager app built with Flutter.
