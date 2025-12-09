@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'signup_screen.dart';
+import 'login_screen.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
@@ -16,11 +18,43 @@ class WelcomeScreen extends StatelessWidget {
             SizedBox(
               height: 180,
               child: Image.network(
-                "https://cdn-icons-png.flaticon.com/512/5956/5956494.png",
+                "https://plus.unsplash.com/premium_photo-1681487870238-4a2dfddc6bcb?q=80&w=1160&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
                 fit: BoxFit.contain,
               ),
             ),
 
             const SizedBox(height: 30),
 
-            
+            // TITLE
+            const Text(
+              "Welcome to TaskTicker",
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                color: Colors.black,
+              ),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 15),
+
+            // SMALL DESCRIPTION
+            const Text(
+              "Manage your tasks smartly with our integrated calendar features. Stay organized and never miss a deadline.",
+              style: TextStyle(fontSize: 14, color: Colors.black54),
+              textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 40),
+
+            // SIGN UP BUTTON
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SignUpScreen()),
+                  );
+                },
+               
