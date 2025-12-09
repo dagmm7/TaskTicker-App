@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+
+// Import welcome screen
 import 'package:task_ticker_app/screens/welcome_screen.dart';
-// Import your new home screen
+
+// Import login & signup screens
+import 'package:task_ticker_app/screens/login_screen.dart';
+import 'package:task_ticker_app/screens/signup_screen.dart';
 
 void main() {
   runApp(const TaskTickerApp());
@@ -14,8 +19,7 @@ class TaskTickerApp extends StatelessWidget {
     return MaterialApp(
       title: 'TaskTicker',
       theme: ThemeData(primarySwatch: Colors.blue),
-      // Set HomeScreen as the main entry point
-      home: WelcomeScreen(),
+      home: WelcomeScreen(), // Starting page
       debugShowCheckedModeBanner: false,
     );
   }
