@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'calandar_view_screen.dart';
 
 // Model for the task categories
 class TaskCategory {
@@ -69,6 +70,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _selectedDay.month,
       _selectedDay.day,
     );
+  }
+
+  void _navigateToCalendarView() {
+    // Navigates to the full calendar view screen, passing the selected date
+    // and the callback function for when a new day is selected in the full view.
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => CalendarViewScreen(
+          selectedDay: _selectedDay, // Now passing the required argument
+          onDaySelected: _onDaySelected, // Now passing the required argument
+        ),
+      ),
+    );
+  }
+
+  List<DateTime> _getSevenDays() {
+    // Assuming _today is defined as DateTime.now() in the state init
+    return List.generate(7, (index) => _today.add(Duration(days: index)));
   }
 
   // Helper to format the date display for the header
@@ -166,25 +185,57 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
 
             // 2. Horizontal Calendar View Strip
-            const Padding(
-              padding: EdgeInsets.only(left: 20.0, bottom: 8.0),
-              child: Text(
-                "Calendar",
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(
+                left: 20.0,
+                bottom: 8.0,
+                right: 20.0,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Calendar",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black,
+                    ),
+                  ),
+
+                  GestureDetector(
+                    onTap: _navigateToCalendarView,
+                    child: const Row(
+                      children: const [
+                        Text(
+                          'View All',
+                          style: TextStyle(
+                            color: Colors.blueAccent,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        Icon(
+                          Icons.arrow_forward_ios,
+                          size: 14,
+                          color: Colors.blueAccent,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
             ),
-            SizedBox(
+            // Tap anywhere in this area navigates
+            Container(
+              color: Colors
+                  .white, // Necessary for the gesture detector to register taps outside the list items
               height: 100,
+              padding: const EdgeInsets.symmetric(horizontal: 10.0),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 10.0),
                 itemCount: 7, // Show 7 days starting from today
                 itemBuilder: (context, index) {
-                  final day = DateTime.now().add(Duration(days: index));
+                  final day = _getSevenDays()[index];
                   // Normalize both to compare only date parts (year, month, day)
                   final normalizedDay = DateTime(day.year, day.month, day.day);
                   final isSelected = normalizedDay.isAtSameMomentAs(
@@ -194,57 +245,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     normalizedToday,
                   );
 
-                  return GestureDetector(
-                    onTap: () => _onDaySelected(day),
-                    child: Container(
-                      width: 70,
-                      margin: const EdgeInsets.symmetric(horizontal: 5.0),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? Colors.blueAccent
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(15),
-                        boxShadow: isSelected
-                            ? [
-                                BoxShadow(
-                                  color: Colors.blue.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ]
-                            : null,
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            isToday
-                                ? 'TODAY'
-                                : DateFormat(
-                                    'EEE',
-                                  ).format(day), // Day name (Mon, Tue, etc.)
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black54,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            day.day.toString(), // Day number (15, 16, etc.)
-                            style: TextStyle(
-                              color: isSelected ? Colors.white : Colors.black,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 24,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                  // Using DayTile custom widget
+                  return DayTile(
+                    day: day,
+                    isSelected: isSelected,
+                    isToday: isToday,
+                    onTap: () {
+                      // Explicitly call the selection logic when a tile is tapped
+                      _onDaySelected(day);
+                    },
                   );
                 },
               ),
             ),
+
             const SizedBox(height: 30),
 
             // 3. Category GridView (between calendar and tasks list)
@@ -484,6 +498,76 @@ class TaskListItem extends StatelessWidget {
               activeColor: task.category.color,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class DayTile extends StatelessWidget {
+  final DateTime day;
+  final bool isSelected;
+  final bool isToday;
+  final VoidCallback onTap;
+
+  const DayTile({
+    super.key,
+    required this.day,
+    required this.isSelected,
+    required this.isToday,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+
+      // Wrap in Builder to prevent gesture propagation to parent GestureDetector when tapped
+      child: Container(
+        width: 70,
+        margin: const EdgeInsets.symmetric(horizontal: 5.0),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.blueAccent : Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: isSelected ? Colors.blueAccent : Colors.grey.shade300,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: Colors.blue.withOpacity(0.3),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              isToday
+                  ? 'TODAY'
+                  : DateFormat(
+                      'EEE',
+                    ).format(day).toUpperCase(), // Day name (MON, TUE, etc.)
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black54,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              day.day.toString(), // Day number (15, 16, etc.)
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w900,
+                fontSize: 24,
               ),
             ),
           ],
