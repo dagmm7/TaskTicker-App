@@ -4,7 +4,6 @@ import 'tasks_screen.dart';
 import 'create_task_screen.dart';
 import 'completed_tasks_screen.dart';
 
-
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -16,10 +15,10 @@ class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
   final List<Widget> _screens = [
-    const DashboardScreen(),        // Calendar / Dashboard
-    const TasksScreen(),            // Tasks List
-    const CreateTaskScreen(),       // <-- REAL ADD TASK UI
-    const CompletedTasksScreen(),   // Completed Tasks UI
+    const DashboardScreen(), // Calendar / Dashboard
+    const TasksScreen(), // Tasks List
+    const CreateTaskScreen(), // <-- REAL ADD TASK UI
+    const CompletedTasksScreen(), // Completed Tasks UI
   ];
 
   String _getAppTitle(int index) {
@@ -36,6 +35,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return "TaskTicker";
     }
   }
+
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
@@ -71,14 +71,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: TextStyle(color: Colors.white, fontSize: 24),
               ),
             ),
-            ListTile(
-              title: Text('Categories (Coming Soon)'),
-            ),
+            ListTile(title: Text('Categories (Coming Soon)')),
           ],
         ),
       ),
 
-      body: _screens[_selectedIndex],   // <-- Shows correct screen
+      body: _screens[_selectedIndex], // <-- Shows correct screen
 
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -91,14 +89,8 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.list_alt),
-            label: 'Tasks',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle),
-            label: 'Add',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_circle), label: 'Add'),
           BottomNavigationBarItem(
             icon: Icon(Icons.check_circle_outline),
             label: 'Completed',

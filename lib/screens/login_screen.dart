@@ -27,7 +27,7 @@ class LoginScreen extends StatelessWidget {
                   border: OutlineInputBorder(),
                 ),
                 validator: (value) =>
-                    value!.isEmpty ? "Enter your email" : null,
+                    value == null || value.isEmpty ? "Enter your email" : null,
               ),
               const SizedBox(height: 15),
               TextFormField(
@@ -37,8 +37,9 @@ class LoginScreen extends StatelessWidget {
                   labelText: "Password",
                   border: OutlineInputBorder(),
                 ),
-                validator: (value) =>
-                    value!.isEmpty ? "Enter your password" : null,
+                validator: (value) => value == null || value.isEmpty
+                    ? "Enter your password"
+                    : null,
               ),
               const SizedBox(height: 25),
               SizedBox(
@@ -46,7 +47,6 @@ class LoginScreen extends StatelessWidget {
                 child: ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      // Navigate to HomeScreen after login
                       Navigator.pushReplacement(
                         context,
                         MaterialPageRoute(
