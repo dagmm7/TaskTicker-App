@@ -64,4 +64,8 @@ class _ProfilePageState extends State<ProfilePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-
+              CircleAvatar(
+              radius: size.width * 0.2,
+              backgroundImage: NetworkImage(widget.imageUrl),
+            ),
+            SizedBox(height: size.height * 0.02),
