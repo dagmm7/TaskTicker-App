@@ -59,3 +59,9 @@ class _ProfilePageState extends State<ProfilePage> {
         elevation: 0,
       ),
 
+      body: SingleChildScrollView(
+        padding: EdgeInsets.all(size.width * 0.05),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+
