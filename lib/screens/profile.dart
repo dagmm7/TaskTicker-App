@@ -115,3 +115,12 @@ class _ProfilePageState extends State<ProfilePage> {
               keyboardType: TextInputType.emailAddress,
             ),
             SizedBox(height: size.height * 0.02),
+           TextField(
+              controller: _passwordController,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(),
+              ),
+              obscureText: true,
+            ),
+            SizedBox(height: size.height * 0.04),
