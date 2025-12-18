@@ -41,3 +41,10 @@ class _ProfilePageState extends State<ProfilePage> {
     super.dispose();
   }
 
+  void saveName() {
+    setState(() {
+      username = _nameController.text.trim();
+      isEditingName = false;
+    });
+  }
+
