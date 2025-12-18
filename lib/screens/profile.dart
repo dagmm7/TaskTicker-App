@@ -106,3 +106,12 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             SizedBox(height: size.height * 0.03),
+        TextField(
+              controller: _emailController,
+              decoration: InputDecoration(
+                labelText: 'Email',
+                border: OutlineInputBorder(),
+              ),
+              keyboardType: TextInputType.emailAddress,
+            ),
+            SizedBox(height: size.height * 0.02),
