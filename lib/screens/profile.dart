@@ -24,3 +24,20 @@ class _ProfilePageState extends State<ProfilePage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
+@override
+  void initState() {
+    super.initState();
+    username = widget.initialName;
+    email = widget.initialEmail;
+    _nameController.text = username;
+    _emailController.text = email;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
