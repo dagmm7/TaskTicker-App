@@ -124,3 +124,30 @@ class _ProfilePageState extends State<ProfilePage> {
               obscureText: true,
             ),
             SizedBox(height: size.height * 0.04),
+            
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Save changes logic here
+                  // For example, update user data in backend or local storage
+                  setState(() {
+                    email = _emailController.text.trim();
+                    // Handle password change as needed
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Profile updated')),
+                  );
+                },
+                child: Text('Save Changes'),
+              ),
+            ),
+            SizedBox(height: size.height * 0.02),
+            // Optional: Logout or other options
+          ],
+        ),
+      ),
+    );
+  }
+}
+        
