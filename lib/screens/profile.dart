@@ -69,3 +69,40 @@ class _ProfilePageState extends State<ProfilePage> {
               backgroundImage: NetworkImage(widget.imageUrl),
             ),
             SizedBox(height: size.height * 0.02),
+
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                isEditingName
+                    ? Expanded(
+                        child: TextField(
+                          controller: _nameController,
+                          decoration: InputDecoration(
+                            labelText: 'Name',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        username,
+                        style: TextStyle(
+                          fontSize: size.width * 0.06,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                SizedBox(width: 10),
+                IconButton(
+                  icon: Icon(isEditingName ? Icons.check : Icons.edit),
+                  onPressed: () {
+                    if (isEditingName) {
+                      saveName();
+                    } else {
+                      setState(() {
+                        isEditingName = true;
+                      });
+                    }
+                  },
+                ),
+              ],
+            ),
+            SizedBox(height: size.height * 0.03),
