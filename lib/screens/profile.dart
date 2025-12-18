@@ -48,3 +48,14 @@ class _ProfilePageState extends State<ProfilePage> {
     });
   }
 
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('My Profile'),
+        backgroundColor: Colors.blueAccent,
+        elevation: 0,
+      ),
+
