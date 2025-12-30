@@ -1,52 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-
-// --- Replicating Models for Self-Containment (Task and Category) ---
-
-// Model for the task categories
-class TaskCategory {
-  final String name;
-  final int taskCount;
-  final Color color;
-  final IconData icon;
-  const TaskCategory(this.name, this.taskCount, this.color, this.icon);
-}
-
-// Model for a single task
-class Task {
-  final String title;
-  final String time;
-  final TaskCategory category;
-  const Task(this.title, this.time, this.category);
-}
-
-// Simulated data (must match the structure used in the dashboard)
-const List<TaskCategory> categories = [
-  const TaskCategory('Work', 4, Colors.blue, Icons.work),
-  const TaskCategory('Family', 5, Colors.orange, Icons.family_restroom),
-  const TaskCategory('School', 6, Colors.green, Icons.school),
-];
-
-// Simulated daily tasks for March 2025 (to match calendar aesthetic)
-// Keys must be normalized to date-only (year, month, day)
-final Map<DateTime, List<Task>> mockTasks = {
-  DateTime(2025, 3, 5): [Task('Design meeting', '1:00 PM', categories[2])],
-  DateTime(2025, 3, 8): [Task('Client Call', '10:00 AM', categories[1])],
-  DateTime(2025, 3, 14): [Task('Presentation Prep', '11:00 AM', categories[0])],
-  DateTime(2025, 3, 19): [Task('Project Check', '9:00 AM', categories[0])],
-  DateTime(2025, 3, 20): [Task('Review Draft', '4:00 PM', categories[2])],
-  DateTime(2025, 3, 23): [Task('Gym Session', '6:00 PM', categories[1])],
-  DateTime(2025, 3, 27): [Task('Code Review', '2:00 PM', categories[0])],
-  DateTime(2025, 3, 30): [Task('Grocery Run', '7:00 PM', categories[1])],
-  // Tasks for the selected day in the screenshot (March 15th)
-  DateTime(2025, 3, 15): [
-    Task('Team meeting', '10:00 AM', categories[0]), // Blue dot
-    Task('Submit quarterly report', '2:30 PM', categories[1]), // Orange dot
-    Task('Review project timeline', '5:00 PM', categories[2]), // Green dot
-  ],
-};
-
-// --- Calendar View Screen (Stateful Widget) ---
+import 'package:task_ticker_app/services/hive_service.dart';
+import 'package:task_ticker_app/models/task_model.dart';
+import 'package:task_ticker_app/models/category_model.dart';
 
 class CalendarViewScreen extends StatefulWidget {
   final DateTime selectedDay;
@@ -63,60 +19,53 @@ class CalendarViewScreen extends StatefulWidget {
 }
 
 class _CalendarViewScreenState extends State<CalendarViewScreen> {
-  // State for the calendar
   late DateTime _focusedDay;
   late DateTime _selectedDay;
-  // Use a fixed month (March 2025) to visually match the screenshot aesthetic
-  final int _fixedYear = 2025;
-  final int _fixedMonth = 3;
 
   @override
   void initState() {
     super.initState();
-    // Normalize the passed date to match the screenshot's data structure
-    _selectedDay = DateTime(_fixedYear, _fixedMonth, widget.selectedDay.day);
-    _focusedDay = DateTime(_fixedYear, _fixedMonth, 1);
+    _selectedDay = DateTime(
+      widget.selectedDay.year,
+      widget.selectedDay.month,
+      widget.selectedDay.day,
+    );
+    _focusedDay = DateTime(
+      widget.selectedDay.year,
+      widget.selectedDay.month,
+      1,
+    );
   }
 
-  // --- Utility Functions ---
-
-  // Fetches tasks for a specific date (normalized to date-only)
-  List<Task> _getEventsForDay(DateTime day) {
-    // Normalize the day to match the keys in mockTasks
+  List<TaskModel> _getEventsForDay(DateTime day) {
     final normalizedDay = DateTime(day.year, day.month, day.day);
-    return mockTasks[normalizedDay] ?? [];
+    return HiveService.getTasksByDate(normalizedDay);
   }
 
-  // Generates the list of days for the fixed month grid (March 2025)
+  List<Color> _getEventColorsForDay(DateTime day) {
+    final tasks = _getEventsForDay(day);
+    return tasks.map((task) {
+      final category = HiveService.getCategory(task.categoryId);
+      return category?.color ?? Colors.grey;
+    }).toList();
+  }
+
   List<DateTime> _getDaysInMonth(int year, int month) {
-    // March 2025 starts on a Saturday.
-    // The calendar view typically shows the last few days of the previous month
-    // to complete the first week. March 1st is Sat (index 6, where Sun=0).
-    // The previous month (Feb 2025) ends on day 28, which is a Friday.
-    // We need the 5 preceding days: Sun 23rd to Fri 28th.
     final List<DateTime> days = [];
     final DateTime firstDayOfMonth = DateTime(year, month, 1);
-    final int firstDayWeekday =
-        firstDayOfMonth.weekday % 7; // Convert to 0 (Sun) - 6 (Sat)
-    final DateTime lastDayOfPrevMonth = DateTime(
-      year,
-      month,
-      0,
-    ); // Last day of Feb
+    final int firstDayWeekday = firstDayOfMonth.weekday % 7;
+    final DateTime lastDayOfPrevMonth = DateTime(year, month, 0);
 
-    // Add days from the previous month
     for (int i = firstDayWeekday; i > 0; i--) {
       days.add(lastDayOfPrevMonth.subtract(Duration(days: i - 1)));
     }
 
-    // Add days of the current month (up to 31)
     DateTime currentDay = firstDayOfMonth;
     while (currentDay.month == month) {
       days.add(currentDay);
       currentDay = currentDay.add(const Duration(days: 1));
     }
 
-    // Add days from the next month to fill the grid (up to 6 rows * 7 columns = 42 cells)
     int daysInGrid = days.length;
     while (daysInGrid < 42) {
       days.add(currentDay);
@@ -127,40 +76,50 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
     return days;
   }
 
-  // Handles when a day is tapped
   void _onDayTap(DateTime day) {
-    if (day.month == _fixedMonth) {
+    if (day.month == _focusedDay.month) {
       setState(() {
         _selectedDay = day;
       });
     }
   }
 
+  void _previousMonth() {
+    setState(() {
+      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1, 1);
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1, 1);
+    });
+  }
+
+  Future<void> _toggleTaskCompletion(TaskModel task) async {
+    await HiveService.updateTaskCompletion(task.id, !task.isCompleted);
+    setState(() {});
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Re-select the key tasks based on the current state of _selectedDay
-    final List<Task> selectedTasks = _getEventsForDay(_selectedDay);
-    final List<DateTime> daysInGrid = _getDaysInMonth(_fixedYear, _fixedMonth);
-
-    // This is the date/time string for display below the AppBar
-    final String dateString = DateFormat(
-      'EEEE, MMMM d, yyyy',
-    ).format(DateTime.now());
+    final selectedTasks = _getEventsForDay(_selectedDay);
+    final daysInGrid = _getDaysInMonth(_focusedDay.year, _focusedDay.month);
+    final dateString = DateFormat('EEEE, MMMM d, yyyy').format(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
-        // Retaining the user-requested AppBar style
         title: const Text(
           "Full Calendar View",
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
-        backgroundColor: Colors.blueAccent,
+        backgroundColor: const Color(0xFF4A90E2),
         iconTheme: const IconThemeData(color: Colors.white),
       ),
-      // --- Bottom Navigation Bar (Added) ---
+
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: Colors.blueAccent,
+        selectedItemColor: const Color(0xFF4A90E2),
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(
@@ -169,7 +128,7 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
           ),
           BottomNavigationBarItem(icon: Icon(Icons.list_alt), label: 'Tasks'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle, size: 30), // Larger Add icon
+            icon: Icon(Icons.add_circle, size: 30),
             label: 'Add',
           ),
           BottomNavigationBarItem(
@@ -177,28 +136,22 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
             label: 'Completed',
           ),
         ],
-        currentIndex: 0, // Calendar is the current view
+        currentIndex: 0,
         onTap: (index) {
-          // In a real app, this would navigate to the respective screen
           if (index == 0) {
-            // Already on Calendar view
           } else {
-            // Pop back to dashboard if navigating to a different main screen
             Navigator.pop(context);
           }
         },
       ),
-      // --- Body Content ---
+
       body: Stack(
         children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.only(
-              bottom: 100,
-            ), // Reserve space for the button
+            padding: const EdgeInsets.only(bottom: 100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Current Date Display
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20.0,
@@ -214,7 +167,6 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                   ),
                 ),
 
-                // 2. Divider
                 const Divider(
                   height: 1,
                   thickness: 1,
@@ -222,7 +174,6 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                   endIndent: 20,
                 ),
 
-                // 3. Calendar Month Header
                 Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 20.0,
@@ -231,10 +182,10 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Icon(
-                        Icons.chevron_left,
-                        color: Colors.grey,
-                      ), // Mock navigation
+                      IconButton(
+                        icon: const Icon(Icons.chevron_left),
+                        onPressed: _previousMonth,
+                      ),
                       Text(
                         DateFormat('MMMM yyyy').format(_focusedDay),
                         style: const TextStyle(
@@ -242,20 +193,18 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: Colors.grey,
-                      ), // Mock navigation
+                      IconButton(
+                        icon: const Icon(Icons.chevron_right),
+                        onPressed: _nextMonth,
+                      ),
                     ],
                   ),
                 ),
 
-                // 4. Calendar Grid (Static Month View)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 10.0),
                   child: Table(
                     children: [
-                      // Weekday Headers
                       TableRow(
                         children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
                             .map(
@@ -276,16 +225,16 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                             )
                             .toList(),
                       ),
-                      // Day Cells (6 rows)
+
                       for (int i = 0; i < 6; i++)
                         TableRow(
                           children: daysInGrid.skip(i * 7).take(7).map((day) {
                             final bool isCurrentMonth =
-                                day.month == _fixedMonth;
+                                day.month == _focusedDay.month;
                             final bool isSelected = day.isAtSameMomentAs(
                               _selectedDay,
                             );
-                            final List<Task> events = _getEventsForDay(day);
+                            final eventColors = _getEventColorsForDay(day);
 
                             return GestureDetector(
                               onTap: () => _onDayTap(day),
@@ -293,9 +242,7 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                                 day: day.day,
                                 isCurrentMonth: isCurrentMonth,
                                 isSelected: isSelected,
-                                eventColors: events
-                                    .map((e) => e.category.color)
-                                    .toList(),
+                                eventColors: eventColors,
                               ),
                             );
                           }).toList(),
@@ -306,7 +253,6 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
 
                 const SizedBox(height: 30),
 
-                // 5. Tasks for Selected Day
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20.0),
                   child: Column(
@@ -334,7 +280,6 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                       ),
                       const SizedBox(height: 15),
 
-                      // Task List
                       if (selectedTasks.isEmpty)
                         const Center(
                           child: Padding(
@@ -349,9 +294,16 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
                           ),
                         )
                       else
-                        ...selectedTasks
-                            .map((task) => TaskItem(task: task))
-                            .toList(),
+                        ...selectedTasks.map((task) {
+                          final category = HiveService.getCategory(
+                            task.categoryId,
+                          );
+                          return TaskItem(
+                            task: task,
+                            category: category,
+                            onToggle: () => _toggleTaskCompletion(task),
+                          );
+                        }),
                     ],
                   ),
                 ),
@@ -359,20 +311,18 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
             ),
           ),
 
-          // 6. "Return to Dashboard" Button (Fixed at the bottom)
           Positioned(
-            bottom: 70, // Positioned above the BottomNavigationBar
+            bottom: 70,
             left: 0,
             right: 0,
             child: Center(
               child: ElevatedButton(
                 onPressed: () {
-                  // Call the original callback with the last selected day
                   widget.onDaySelected(_selectedDay);
                   Navigator.pop(context);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blueAccent,
+                  backgroundColor: const Color(0xFF4A90E2),
                   foregroundColor: Colors.white,
 
                   shape: RoundedRectangleBorder(
@@ -393,7 +343,6 @@ class _CalendarViewScreenState extends State<CalendarViewScreen> {
   }
 }
 
-// Custom Widget for a single calendar grid cell
 class CalendarCell extends StatelessWidget {
   final int day;
   final bool isSelected;
@@ -415,9 +364,9 @@ class CalendarCell extends StatelessWidget {
       alignment: Alignment.center,
       decoration: isSelected
           ? BoxDecoration(
-              color: Colors.blueAccent,
+              color: const Color(0xFF4A90E2),
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.blueAccent.shade700, width: 1.5),
+              border: Border.all(color: const Color(0xFF4A90E2), width: 1.5),
             )
           : null,
       child: Column(
@@ -464,77 +413,66 @@ class CalendarCell extends StatelessWidget {
   }
 }
 
-// Custom Widget for Task List Item in Calendar View
-class TaskItem extends StatefulWidget {
-  final Task task;
-  const TaskItem({super.key, required this.task});
+class TaskItem extends StatelessWidget {
+  final TaskModel task;
+  final CategoryModel? category;
+  final VoidCallback onToggle;
 
-  @override
-  State<TaskItem> createState() => _TaskItemState();
-}
-
-class _TaskItemState extends State<TaskItem> {
-  bool isCompleted = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // Pre-check the third task in the March 15 list to match the screenshot
-    if (widget.task.title == 'Review project timeline') {
-      isCompleted = true;
-    }
-  }
+  const TaskItem({
+    super.key,
+    required this.task,
+    this.category,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final taskColor = category?.color ?? Colors.grey;
     return Padding(
       padding: const EdgeInsets.only(bottom: 15.0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Custom Checkbox that resembles the screenshot style
           Checkbox(
-            value: isCompleted,
+            value: task.isCompleted,
             onChanged: (bool? newValue) {
-              setState(() {
-                isCompleted = newValue!;
-              });
+              onToggle();
             },
-            activeColor: Colors.blueAccent,
+            activeColor: const Color(0xFF4A90E2),
             checkColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
             ),
             side: BorderSide(
-              color: isCompleted ? Colors.blueAccent : Colors.grey.shade400,
+              color: task.isCompleted
+                  ? const Color(0xFF4A90E2)
+                  : Colors.grey.shade400,
               width: 2,
             ),
           ),
           const SizedBox(width: 10),
-          // Task Title
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(top: 10.0),
               child: Text(
-                widget.task.title,
+                task.title,
                 style: TextStyle(
                   fontSize: 17,
-                  decoration: isCompleted
+                  decoration: task.isCompleted
                       ? TextDecoration.lineThrough
                       : TextDecoration.none,
-                  color: isCompleted ? Colors.grey : Colors.black87,
+                  color: task.isCompleted ? Colors.grey : Colors.black87,
                 ),
               ),
             ),
           ),
-          // Category Dot
           Padding(
             padding: const EdgeInsets.only(top: 10.0),
             child: Container(
               width: 8,
               height: 8,
               decoration: BoxDecoration(
-                color: widget.task.category.color,
+                color: taskColor,
                 shape: BoxShape.circle,
               ),
             ),

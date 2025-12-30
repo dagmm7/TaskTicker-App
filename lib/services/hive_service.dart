@@ -78,7 +78,7 @@ class HiveService {
     if (userData == null) return null;
     return UserModel.fromMap(Map<String, dynamic>.from(userData));
   }
-  
+
   static bool userExists(String email) {
     return _usersBox!.containsKey(email);
   }
@@ -137,7 +137,8 @@ class HiveService {
         .where((task) => task.categoryId == categoryId && !task.isCompleted)
         .toList();
   }
-   static Future<void> updateTaskCompletion(
+
+  static Future<void> updateTaskCompletion(
     String taskId,
     bool isCompleted,
   ) async {
@@ -180,6 +181,17 @@ class HiveService {
 
   static Future<void> deleteCategory(String categoryId) async {
     await _categoriesBox!.delete(categoryId);
+    // Clear category references from tasks that used this category
+    for (var key in _tasksBox!.keys) {
+      final taskData = _tasksBox!.get(key);
+      if (taskData != null) {
+        final task = TaskModel.fromMap(Map<String, dynamic>.from(taskData));
+        if (task.categoryId == categoryId) {
+          task.categoryId = '';
+          await saveTask(task);
+        }
+      }
+    }
   }
 
   // App state operations
@@ -283,4 +295,3 @@ class HiveService {
     return []; // Placeholder - can be extended later
   }
 }
-
