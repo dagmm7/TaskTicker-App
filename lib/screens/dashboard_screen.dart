@@ -1,54 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:task_ticker_app/services/hive_service.dart';
+import 'package:task_ticker_app/models/task_model.dart';
+import 'package:task_ticker_app/models/category_model.dart';
 import 'calandar_view_screen.dart';
+import 'tasks_screen.dart';
+import 'create_task_screen.dart';
+import 'category_edit_screen.dart';
 
-// Model for the task categories
-class TaskCategory {
-  final String name;
-  final int taskCount;
-  final Color color;
-  final IconData icon;
-
-  TaskCategory(this.name, this.taskCount, this.color, this.icon);
-}
-
-// Model for a single task
-class Task {
-  final String title;
-  final String time;
-  final TaskCategory category;
-
-  Task(this.title, this.time, this.category);
-}
-
-// Simulated data
-final List<TaskCategory> categories = [
-  TaskCategory('Work', 4, Colors.blue, Icons.work),
-  TaskCategory('Family', 5, Colors.orange, Icons.family_restroom),
-  TaskCategory('School', 6, Colors.green, Icons.school),
-  TaskCategory('Personal', 3, Colors.purple, Icons.person),
-  TaskCategory('Add', 2, Colors.red, Icons.add),
-];
-
-// data model(simulated)....
-
-// Simulated daily tasks
-final Map<DateTime, List<Task>> mockTasks = {
-  // Today's tasks (normalized to just date, ignoring time)
-  DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day): [
-    Task('Project proposal review', '10:00 AM', categories[0]),
-    Task('Math assignment', '2:30 PM', categories[2]),
-    Task('Grocery shopping', '5:00 PM', categories[4]),
-  ],
-  // Tomorrow's tasks
-  DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day + 1): [
-    Task('Team Meeting Prep', '9:00 AM', categories[0]),
-    Task('Client Follow-up', '1:00 PM', categories[0]),
-    Task('Call Mom', '7:00 PM', categories[1]),
-  ],
-};
-
-//.....widgets....
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -57,101 +16,87 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // State to track the currently selected date
   DateTime _selectedDay = DateTime.now();
   final DateTime _today = DateTime.now();
+  List<TaskModel> _todayTasks = [];
+  List<CategoryModel> _categories = [];
 
   @override
   void initState() {
     super.initState();
-    // Normalize the initial selected day to avoid time component issues
-    _selectedDay = DateTime(
-      _selectedDay.year,
-      _selectedDay.month,
-      _selectedDay.day,
-    );
+
+    _selectedDay = DateTime(_today.year, _today.month, _today.day);
+    _loadData();
   }
 
-  void _navigateToCalendarView() {
-    // Navigates to the full calendar view screen, passing the selected date
-    // and the callback function for when a new day is selected in the full view.
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => CalendarViewScreen(
-          selectedDay: _selectedDay, // Now passing the required argument
-          onDaySelected: _onDaySelected, // Now passing the required argument
-        ),
-      ),
-    );
+  void _loadData() {
+    setState(() {
+      _categories = HiveService.getAllCategories();
+      _todayTasks = HiveService.getTasksByDate(_selectedDay);
+    });
   }
 
-  List<DateTime> _getSevenDays() {
-    // Assuming _today is defined as DateTime.now() in the state init
-    return List.generate(7, (index) => _today.add(Duration(days: index)));
-  }
-
-  // Helper to format the date display for the header
-  String get _currentDateText {
-    return DateFormat('MMMM d').format(DateTime.now());
-  }
-
-  // Gets tasks for the selected day by normalizing the map keys
-  List<Task> get _tasksForSelectedDay {
-    // Normalize selected day to match keys in mockTasks
-    DateTime normalizedSelected = DateTime(
-      _selectedDay.year,
-      _selectedDay.month,
-      _selectedDay.day,
-    );
-
-    // Look up tasks for the normalized date
-    return mockTasks[normalizedSelected] ?? [];
-  }
-
-  // This handles the user selecting a new day from the calendar strip
   void _onDaySelected(DateTime day) {
     setState(() {
       _selectedDay = DateTime(day.year, day.month, day.day);
+      _loadData();
     });
+  }
+
+  List<DateTime> _getSevenDays() {
+    final start = DateTime(_today.year, _today.month, _today.day);
+    return List.generate(7, (i) => start.add(Duration(days: i)));
+  }
+
+  void _navigateToCalendarView() {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => CalendarViewScreen(
+              selectedDay: _selectedDay,
+              onDaySelected: _onDaySelected,
+            ),
+          ),
+        )
+        .then((_) => _loadData());
+  }
+
+  void _navigateToCategoryTasks(String categoryId) {
+    Navigator.of(context)
+        .push(
+          MaterialPageRoute(
+            builder: (context) => TasksScreen(selectedCategoryId: categoryId),
+          ),
+        )
+        .then((_) => _loadData());
+  }
+
+  void _toggleTaskCompletion(TaskModel task) {
+    task.isCompleted = !task.isCompleted;
+    HiveService.saveTask(task);
+    _loadData();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Normalize today's date once for comparison in the builder
-    final DateTime normalizedToday = DateTime(
-      _today.year,
-      _today.month,
-      _today.day,
+    final normalizedToday = DateTime(_today.year, _today.month, _today.day);
+    final _currentDateText = DateFormat('MMMM d, y').format(_today);
+
+    final selectedNormalized = DateTime(
+      _selectedDay.year,
+      _selectedDay.month,
+      _selectedDay.day,
     );
+    final taskSectionTitle =
+        selectedNormalized.isAtSameMomentAs(normalizedToday)
+        ? "Today's Tasks"
+        : "${DateFormat('EEEE').format(_selectedDay)}'s Tasks";
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          "TaskTicker",
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
-        ),
-        backgroundColor: Colors.blueAccent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, color: Colors.white),
-            onPressed: () {
-              // TODO: Navigate to Task Creation Screen
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.search, color: Colors.white),
-            onPressed: () {
-              // TODO: Open Search
-            },
-          ),
-        ],
-      ),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Dashboard Header
             Padding(
               padding: const EdgeInsets.only(
                 left: 20.0,
@@ -171,7 +116,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // This text is placed above the calendar view as requested
                   Text(
                     "Today, $_currentDateText",
                     style: const TextStyle(
@@ -184,7 +128,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
 
-            // 2. Horizontal Calendar View Strip
             Padding(
               padding: const EdgeInsets.only(
                 left: 20.0,
@@ -202,22 +145,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       color: Colors.black,
                     ),
                   ),
-
                   GestureDetector(
                     onTap: _navigateToCalendarView,
                     child: const Row(
-                      children: const [
+                      children: [
                         Text(
                           'View All',
                           style: TextStyle(
-                            color: Colors.blueAccent,
+                            color: Color(0xFF4A90E2),
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         Icon(
                           Icons.arrow_forward_ios,
                           size: 14,
-                          color: Colors.blueAccent,
+                          color: Color(0xFF4A90E2),
                         ),
                       ],
                     ),
@@ -225,18 +167,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ],
               ),
             ),
-            // Tap anywhere in this area navigates
             Container(
-              color: Colors
-                  .white, // Necessary for the gesture detector to register taps outside the list items
+              color: Colors.white,
               height: 100,
               padding: const EdgeInsets.symmetric(horizontal: 10.0),
               child: ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount: 7, // Show 7 days starting from today
+                itemCount: 7,
                 itemBuilder: (context, index) {
                   final day = _getSevenDays()[index];
-                  // Normalize both to compare only date parts (year, month, day)
                   final normalizedDay = DateTime(day.year, day.month, day.day);
                   final isSelected = normalizedDay.isAtSameMomentAs(
                     _selectedDay,
@@ -245,13 +184,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     normalizedToday,
                   );
 
-                  // Using DayTile custom widget
                   return DayTile(
                     day: day,
                     isSelected: isSelected,
                     isToday: isToday,
                     onTap: () {
-                      // Explicitly call the selection logic when a tile is tapped
                       _onDaySelected(day);
                     },
                   );
@@ -261,7 +198,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 30),
 
-            // 3. Category GridView (between calendar and tasks list)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
@@ -276,36 +212,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  GridView.builder(
-                    physics:
-                        const NeverScrollableScrollPhysics(), // Important to scroll with SingleChildScrollView
-                    shrinkWrap: true,
-                    itemCount: categories.length,
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 15.0,
-                          mainAxisSpacing: 15.0,
-                          childAspectRatio: 2.5, // Make cards wide and short
-                        ),
-                    itemBuilder: (context, index) {
-                      final category = categories[index];
-                      return CategoryCard(category: category);
-                    },
+                  SizedBox(
+                    height: 170,
+                    child: GridView.builder(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      shrinkWrap: true,
+                      itemCount: _categories.length + 1,
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 10.0,
+                            mainAxisSpacing: 10.0,
+
+                            childAspectRatio: 0.45,
+                          ),
+                      itemBuilder: (context, index) {
+                        if (index == _categories.length) {
+                          return CategoryCard(
+                            category: null,
+                            onTap: () {
+                              Navigator.of(context)
+                                  .push(
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          const CategoryEditScreen(),
+                                    ),
+                                  )
+                                  .then((result) {
+                                    _loadData();
+                                    if (result == true) {
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        const SnackBar(
+                                          content: Text('Deleted successfully'),
+                                        ),
+                                      );
+                                    }
+                                  });
+                            },
+                          );
+                        }
+                        final category = _categories[index];
+                        final taskCount = HiveService.getTasksByCategory(
+                          category.id,
+                        ).length;
+                        return CategoryCard(
+                          category: category,
+                          taskCount: taskCount,
+                          onTap: () {
+                            _navigateToCategoryTasks(category.id);
+                          },
+                        );
+                      },
+                    ),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 30),
 
-            // 4. Tasks List for the Selected Day
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    "Tasks for ${DateFormat('EEEE, MMMM d').format(_selectedDay)}",
+                    taskSectionTitle,
                     style: const TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -313,10 +287,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                   const SizedBox(height: 15),
-                  ..._tasksForSelectedDay
-                      .map((task) => TaskListItem(task: task))
-                      .toList(),
-                  if (_tasksForSelectedDay.isEmpty)
+                  ..._todayTasks.map((task) {
+                    final category = HiveService.getCategory(task.categoryId);
+                    return TaskListItem(
+                      task: task,
+                      category: category,
+                      onToggle: () => _toggleTaskCompletion(task),
+                    );
+                  }),
+                  if (_todayTasks.isEmpty)
                     Container(
                       padding: const EdgeInsets.all(20),
                       margin: const EdgeInsets.only(top: 10),
@@ -324,10 +303,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: Center(
+                      child: const Center(
                         child: Text(
-                          "Hooray! No tasks scheduled for ${DateFormat('MMMM d').format(_selectedDay)}.",
-                          style: const TextStyle(
+                          "Hooray! No tasks scheduled for today.",
+                          style: TextStyle(
                             color: Colors.black54,
                             fontStyle: FontStyle.italic,
                           ),
@@ -345,83 +324,108 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// Custom Widget for grid view item
 class CategoryCard extends StatelessWidget {
-  final TaskCategory category;
-  const CategoryCard({super.key, required this.category});
+  final CategoryModel? category;
+  final int? taskCount;
+  final VoidCallback onTap;
 
-  bool get isAddButton => category.name == 'Add New';
+  const CategoryCard({
+    super.key,
+    this.category,
+    this.taskCount,
+    required this.onTap,
+  });
+
+  bool get isAddButton => category == null;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      // <--- WRAP IN GESTUREDETECTOR
-      onTap: () {
-        if (isAddButton) {
-          // TODO: Implement navigation to the "Create New Task" screen.
-          // For now, we can print a message:
-          print('Navigate to Create New Task Screen');
-        } else {
-          // Normal category selection logic (e.g., filter tasks)
-          print('Selected category: ${category.name}');
-        }
-      },
+      onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),
-        // Use a distinct style for the Add button
         decoration: BoxDecoration(
           color: isAddButton
               ? Colors.red.shade100
-              : category.color.withOpacity(0.1), // Light red background for Add
+              : category!.color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: isAddButton ? Colors.red : category.color.withOpacity(0.3),
-          ), // Red border for Add
+            color: isAddButton ? Colors.red : category!.color.withOpacity(0.3),
+          ),
         ),
         child: Row(
           children: [
-            // Use a larger icon for the Add button
             Icon(
-              category.icon,
-              color: isAddButton ? Colors.red : category.color,
-              size: isAddButton ? 36 : 28,
+              isAddButton ? Icons.add : _getIconData(category!.iconName),
+              color: isAddButton ? Colors.red : category!.color,
+              size: 24,
             ),
             const SizedBox(width: 15),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  category.name,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: isAddButton ? Colors.red : category.color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                // Hide the task count for the 'Add New' button
-                if (!isAddButton)
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
                   Text(
-                    "${category.taskCount} tasks",
-                    style: const TextStyle(fontSize: 12, color: Colors.black54),
+                    isAddButton ? 'Add New' : category!.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: isAddButton ? Colors.red : category!.color,
+                    ),
                   ),
-              ],
+                  if (!isAddButton && taskCount != null) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      "$taskCount tasks",
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
       ),
     );
   }
+
+  IconData _getIconData(String iconName) {
+    switch (iconName) {
+      case 'work':
+        return Icons.work;
+      case 'family_restroom':
+        return Icons.family_restroom;
+      case 'school':
+        return Icons.school;
+      case 'person':
+        return Icons.person;
+      default:
+        return Icons.category;
+    }
+  }
 }
 
-// Custom Widget for Task List Item
 class TaskListItem extends StatelessWidget {
-  final Task task;
-  const TaskListItem({super.key, required this.task});
+  final TaskModel task;
+  final CategoryModel? category;
+  final VoidCallback onToggle;
+
+  const TaskListItem({
+    super.key,
+    required this.task,
+    this.category,
+    required this.onToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final taskColor = category?.color ?? Colors.grey;
+    final timeString = DateFormat('h:mm a').format(task.dueDate);
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 15.0),
       child: Container(
@@ -440,17 +444,15 @@ class TaskListItem extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Category Color Indicator
             Container(
               width: 5,
               height: 50,
               decoration: BoxDecoration(
-                color: task.category.color,
+                color: taskColor,
                 borderRadius: BorderRadius.circular(10),
               ),
             ),
             const SizedBox(width: 15),
-            // Task Details
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -465,37 +467,65 @@ class TaskListItem extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.access_time, size: 14, color: Colors.black45),
+                      const Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.black45,
+                      ),
                       const SizedBox(width: 5),
                       Text(
-                        task.time,
+                        timeString,
                         style: const TextStyle(
                           fontSize: 14,
                           color: Colors.black54,
                         ),
                       ),
                       const Spacer(),
-                      // Optional: Show category name on the right
-                      Text(
-                        task.category.name,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: task.category.color,
-                          fontWeight: FontWeight.bold,
+                      if (category != null)
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context)
+                                .push(
+                                  MaterialPageRoute(
+                                    builder: (ctx) =>
+                                        CategoryEditScreen(category: category),
+                                  ),
+                                )
+                                .then((result) {
+                                  final parent = context
+                                      .findAncestorStateOfType<
+                                        _DashboardScreenState
+                                      >();
+                                  parent?._loadData();
+                                  if (result == true) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Deleted successfully'),
+                                      ),
+                                    );
+                                  }
+                                });
+                          },
+                          child: Text(
+                            category!.name,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: taskColor,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 ],
               ),
             ),
-            // Checkbox
             Checkbox(
-              value: false, // Always false for active task list
+              value: task.isCompleted,
               onChanged: (bool? newValue) {
-                // TODO: Implement task completion logic
+                onToggle();
               },
-              activeColor: task.category.color,
+              activeColor: taskColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(4),
               ),
@@ -525,21 +555,19 @@ class DayTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-
-      // Wrap in Builder to prevent gesture propagation to parent GestureDetector when tapped
       child: Container(
         width: 70,
         margin: const EdgeInsets.symmetric(horizontal: 5.0),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.blueAccent : Colors.white,
+          color: isSelected ? const Color(0xFF4A90E2) : Colors.white,
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
-            color: isSelected ? Colors.blueAccent : Colors.grey.shade300,
+            color: isSelected ? const Color(0xFF4A90E2) : Colors.grey.shade300,
           ),
           boxShadow: isSelected
               ? [
                   BoxShadow(
-                    color: Colors.blue.withOpacity(0.3),
+                    color: const Color(0xFF4A90E2).withOpacity(0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -550,11 +578,7 @@ class DayTile extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              isToday
-                  ? 'TODAY'
-                  : DateFormat(
-                      'EEE',
-                    ).format(day).toUpperCase(), // Day name (MON, TUE, etc.)
+              isToday ? 'TODAY' : DateFormat('EEE').format(day).toUpperCase(),
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black54,
                 fontWeight: FontWeight.bold,
@@ -563,7 +587,7 @@ class DayTile extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              day.day.toString(), // Day number (15, 16, etc.)
+              day.day.toString(),
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.black,
                 fontWeight: FontWeight.w900,
